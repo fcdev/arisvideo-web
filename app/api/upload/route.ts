@@ -1,23 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { API_CONFIG } from '../../config/api';
+
+const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'http://localhost:8000';
+const PYTHON_API_KEY = process.env.PYTHON_API_KEY || '';
 
 export async function POST(request: NextRequest) {
   try {
-    // Create Supabase client for auth verification
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-
-    // Get auth token from request headers
-    const authHeader = request.headers.get('authorization');
-    console.log('Upload auth header received:', authHeader ? `Bearer ${authHeader.substring(7).substring(0, 20)}...` : 'None');
-    
     // Get form data
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];
-    
+
     if (!files || files.length === 0) {
       return NextResponse.json(
         { error: 'No files provided' },
@@ -25,37 +16,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Prepare multipart form data for backend
-    const backendFormData = new FormData();
+    // Prepare multipart form data for Python service
+    const pythonFormData = new FormData();
     for (const file of files) {
-      backendFormData.append('files', file);
+      pythonFormData.append('files', file);
     }
-    
-    // Prepare headers for backend request
-    const backendHeaders: any = {};
-    
-    // Forward authentication to backend if available
-    if (authHeader) {
-      console.log('Forwarding auth header to backend');
-      backendHeaders['Authorization'] = authHeader;
-    }
-    
-    // Get upload endpoint URL
-    const uploadUrl = process.env.NODE_ENV === 'production' 
-      ? `${process.env.NGROK_URL}/upload`
-      : 'http://localhost:8000/upload';
-    
-    console.log('Uploading files to backend:', uploadUrl);
-    
-    const response = await fetch(uploadUrl, {
+
+    console.log('Uploading files to Python service:', `${PYTHON_SERVICE_URL}/upload`);
+
+    // Forward to Python service with API key
+    const response = await fetch(`${PYTHON_SERVICE_URL}/upload`, {
       method: 'POST',
-      headers: backendHeaders,
-      body: backendFormData,
+      headers: {
+        'X-API-Key': PYTHON_API_KEY,
+      },
+      body: pythonFormData,
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
-      console.error('Backend upload error:', response.status, errorData);
+      console.error('Python service upload error:', response.status, errorData);
       return NextResponse.json(
         { error: errorData.error || `File upload failed: ${response.statusText}` },
         { status: response.status }
@@ -64,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     const result = await response.json();
     console.log('File upload successful:', result);
-    
+
     return NextResponse.json(result);
 
   } catch (error) {

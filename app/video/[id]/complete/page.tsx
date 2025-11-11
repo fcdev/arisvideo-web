@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
 import { Pacifico } from 'next/font/google';
 
 const pacifico = Pacifico({
@@ -37,49 +36,38 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
 
   const fetchVideoData = async () => {
     if (!videoId) return;
-    
+
     try {
-      // Create Supabase client for accessing videos table
-      const supabaseAdmin = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-      
-      console.log('Searching for video_id:', videoId);
-      
-      // Query videos table for the video record
-      const { data: videoData, error: videoError } = await supabaseAdmin
-        .from('videos')
-        .select('video_id, video_url')
-        .eq('video_id', videoId)
-        .single();
+      console.log('Fetching video data for:', videoId);
 
-      console.log('Videos table query result:', { videoData, videoError });
+      // Get video status from our API
+      const response = await fetch(`/api/videos/status/${videoId}`);
 
-      if (videoError) {
-        if (videoError.code === 'PGRST116') {
-          // No rows found
+      if (!response.ok) {
+        if (response.status === 404) {
           throw new Error(`找不到视频ID为 ${videoId} 的记录。请检查链接是否正确，或者视频可能已被删除。`);
-        } else {
-          // Other database error
-          throw new Error(`数据库查询错误: ${videoError.message}`);
         }
+        throw new Error(`获取视频失败: ${response.statusText}`);
       }
 
-      if (videoData) {
-        if (videoData.video_url) {
-          // Video is ready
-          setVideoData(videoData);
-          return;
-        } else {
-          // Video record exists but no URL yet - still generating
-          router.push(`/video/${videoId}`);
-          return;
-        }
-      }
+      const data = await response.json();
+      console.log('Video status:', data);
 
-      // Shouldn't reach here, but just in case
-      throw new Error('未知错误：无法获取视频数据');
+      if (data.status === 'completed' && data.file_path) {
+        // Video is ready
+        setVideoData({
+          video_id: data.video_id,
+          video_url: data.file_path,
+          created_at: data.updated_at,
+        });
+      } else if (data.status === 'processing') {
+        // Still generating, redirect back to progress page
+        router.push(`/video/${videoId}`);
+      } else if (data.status === 'failed') {
+        throw new Error(data.error || '视频生成失败');
+      } else {
+        throw new Error('视频尚未完成生成');
+      }
 
     } catch (err) {
       console.error('Error fetching video:', err);

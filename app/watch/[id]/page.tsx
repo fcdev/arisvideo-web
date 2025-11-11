@@ -1,12 +1,28 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { Pacifico } from 'next/font/google';
-import { supabase } from '../../../lib/supabase';
-import type { User } from '@supabase/supabase-js';
-import type { Video } from '../../../types/database';
 import Link from 'next/link';
+
+interface User {
+  id: string;
+  email: string;
+  createdAt: string;
+}
+
+interface Video {
+  id: string;
+  videoId: string;
+  prompt: string | null;
+  videoUrl: string | null;
+  duration: number | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  video_id?: string; // For compatibility
+  video_url?: string | null; // For compatibility
+}
 
 const pacifico = Pacifico({
   weight: '400',
@@ -16,38 +32,36 @@ const pacifico = Pacifico({
 
 export default function VideoPlayerPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
+  const resolvedParams = use(params);
+  const videoId = resolvedParams.id;
   const [user, setUser] = useState<User | null>(null);
   const [video, setVideo] = useState<Video | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [videoId, setVideoId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const isAuthenticating = useRef(false);
   const isFetchingVideo = useRef(false);
 
   useEffect(() => {
-    params.then((p) => setVideoId(p.id));
-  }, [params]);
-
-  useEffect(() => {
     const initAuth = async () => {
       if (isAuthenticating.current) return;
       isAuthenticating.current = true;
-      
+
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const currentUser = session?.user ?? null;
-        
-        // Only update user state if it actually changed
-        setUser(prevUser => {
-          if (prevUser?.id !== currentUser?.id) {
-            return currentUser;
-          }
-          return prevUser;
-        });
-        
-        if (!currentUser) {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const data = await response.json();
+          const currentUser = data.user;
+
+          // Only update user state if it actually changed
+          setUser(prevUser => {
+            if (prevUser?.id !== currentUser?.id) {
+              return currentUser;
+            }
+            return prevUser;
+          });
+        } else {
           router.push('/login');
         }
       } finally {
@@ -56,46 +70,22 @@ export default function VideoPlayerPage({ params }: { params: Promise<{ id: stri
     };
 
     initAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      const currentUser = session?.user ?? null;
-      
-      // Only update if user actually changed to prevent unnecessary re-renders
-      setUser(prevUser => {
-        if (prevUser?.id !== currentUser?.id) {
-          if (!currentUser) {
-            router.push('/login');
-          }
-          return currentUser;
-        }
-        return prevUser;
-      });
-    });
-
-    return () => subscription.unsubscribe();
   }, [router]);
 
   // Memoized fetch function to prevent unnecessary recreations
   const fetchVideo = useCallback(async () => {
     if (!user || !videoId || isFetchingVideo.current || videoLoaded) return;
-    
+
     isFetchingVideo.current = true;
     setLoading(true);
     setError(null);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: any = {
-        'Content-Type': 'application/json',
-      };
-      
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
-      
-      const response = await fetch(`/api/video/${videoId}`, {
+      const response = await fetch(`/api/videos/status/${videoId}`, {
         method: 'GET',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
 
       if (!response.ok) {
@@ -106,13 +96,24 @@ export default function VideoPlayerPage({ params }: { params: Promise<{ id: stri
       }
 
       const data = await response.json();
-      
-      if (!data.video.video_url) {
+
+      // Check if video is completed and has a URL
+      if (data.status !== 'completed' || !data.file_path) {
         router.push(`/video/${videoId}`);
         return;
       }
-      
-      setVideo(data.video);
+
+      // Adapt the response to match the Video interface
+      setVideo({
+        id: data.video_id,
+        videoId: data.video_id,
+        prompt: null, // Not available in status endpoint
+        videoUrl: data.file_path,
+        duration: data.duration,
+        status: data.status,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      });
       setVideoLoaded(true);
     } catch (err) {
       console.error('Fetch video error:', err);
@@ -131,10 +132,10 @@ export default function VideoPlayerPage({ params }: { params: Promise<{ id: stri
   }, [user, videoId, fetchVideo, videoLoaded]);
 
   const handleDownload = async () => {
-    if (!video?.video_url) return;
-    
+    if (!video?.videoUrl) return;
+
     try {
-      const response = await fetch(video.video_url);
+      const response = await fetch(video.videoUrl);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -235,12 +236,12 @@ export default function VideoPlayerPage({ params }: { params: Promise<{ id: stri
         {/* Video Title */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-black mb-2">
-            {video.prompt ? 
-              (video.prompt.length > 100 ? 
-                `${video.prompt.substring(0, 100)}...` : 
+            {video.prompt ?
+              (video.prompt.length > 100 ?
+                `${video.prompt.substring(0, 100)}...` :
                 video.prompt
-              ) : 
-              `Video ${video.video_id.substring(0, 8)}...`
+              ) :
+              `Video ${video.videoId.substring(0, 8)}...`
             }
           </h1>
           <p className="text-gray-600">AI-generated educational video</p>
@@ -251,12 +252,12 @@ export default function VideoPlayerPage({ params }: { params: Promise<{ id: stri
           <div className="relative">
             {/* Video Player */}
             <div className="aspect-video bg-black rounded-t-2xl overflow-hidden">
-              <video 
-                controls 
+              <video
+                controls
                 className="w-full h-full"
                 poster={undefined}
               >
-                <source src={video.video_url!} type="video/mp4" />
+                <source src={video.videoUrl!} type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
             </div>

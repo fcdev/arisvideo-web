@@ -85,19 +85,10 @@ const FileUpload = ({ onFilesProcessed, disabled = false }: FileUploadProps) => 
         formData.append('files', files[i]);
       }
 
-      // Get auth token
-      const { data: { session } } = await (await import('../lib/supabase')).supabase.auth.getSession();
-      const headers: any = {};
-      
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
-
       setProcessingStatus('Processing file content...');
 
       const response = await fetch('/api/upload', {
         method: 'POST',
-        headers,
         body: formData,
       });
 

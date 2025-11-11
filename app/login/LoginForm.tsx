@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
 
 export default function LoginForm() {
@@ -22,13 +21,11 @@ export default function LoginForm() {
     if (mode === 'signup') {
       setIsSignUp(true);
     }
-    
+
     // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        router.push('/');
-      }
-    });
+    fetch('/api/auth/me')
+      .then(res => res.ok ? router.push('/') : null)
+      .catch(() => {});
   }, [router, searchParams]);
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -45,34 +42,49 @@ export default function LoginForm() {
           setLoading(false);
           return;
         }
-        
+
         // Validate password strength
-        if (password.length < 6) {
-          setError('Password must be at least 6 characters long');
+        if (password.length < 8) {
+          setError('Password must be at least 8 characters long');
           setLoading(false);
           return;
         }
-        
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
+
+        // Register user
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
         });
-        
-        if (error) throw error;
-        
-        setMessage('Please check your email for the confirmation link!');
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Registration failed');
+        }
+
+        // Registration successful, redirect to home
+        setMessage('Account created successfully! Redirecting...');
+        setTimeout(() => router.push('/'), 1500);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+        // Login user
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
         });
-        
-        if (error) throw error;
-        
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Login failed');
+        }
+
+        // Login successful, redirect to home
         router.push('/');
       }
     } catch (error: any) {
-      setError(error.error_description || error.message);
+      setError(error.message || 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -143,10 +155,10 @@ export default function LoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             placeholder="Enter your password"
-            minLength={6}
+            minLength={8}
           />
           {isSignUp && (
-            <p className="text-xs text-gray-500 mt-1">Password must be at least 6 characters long</p>
+            <p className="text-xs text-gray-500 mt-1">Password must be at least 8 characters long</p>
           )}
         </div>
 

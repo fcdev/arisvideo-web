@@ -5,10 +5,13 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Pacifico } from 'next/font/google';
-import { supabase } from '../lib/supabase';
 import ExploreVideos from './components/ExploreVideos';
-// import Auth from '../components/Auth';
-import type { User } from '@supabase/supabase-js';
+
+interface User {
+  id: string;
+  email: string;
+  createdAt: string;
+}
 
 const pacifico = Pacifico({
   weight: '400',
@@ -100,16 +103,17 @@ export default function Home() {
 
   // Authentication useEffect
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
+    // Check if user is logged in
+    fetch('/api/auth/me')
+      .then(async res => {
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.user);
+        } else {
+          setUser(null);
+        }
+      })
+      .catch(() => setUser(null));
   }, []);
 
   const handleFileUpload = async (files: FileList) => {
@@ -150,16 +154,9 @@ export default function Home() {
         formData.append('files', files[i]);
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: any = {};
-      
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
-
+      // Auth is handled by cookies automatically
       const response = await fetch('/api/upload', {
         method: 'POST',
-        headers,
         body: formData,
       });
 
@@ -238,21 +235,13 @@ export default function Home() {
 
     try {
       console.log('Starting video generation...');
-      
-      // Get auth session for API call
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: any = {
-        'Content-Type': 'application/json',
-      };
-      
-      // Add auth header if user is logged in
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
-      
-      const response = await fetch('/api/generate', {
+
+      // Auth is handled by cookies automatically
+      const response = await fetch('/api/videos/generate', {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           prompt: prompt.trim(),
           include_audio: true,
@@ -516,7 +505,11 @@ export default function Home() {
                 <div className="flex items-center space-x-4">
                   <span className="text-gray-700">Welcome, {user.email}</span>
                   <button
-                    onClick={() => supabase.auth.signOut()}
+                    onClick={async () => {
+                      await fetch('/api/auth/logout', { method: 'POST' });
+                      setUser(null);
+                      router.push('/');
+                    }}
                     className="px-4 py-2 text-gray-600 hover:text-red-600 transition-colors"
                   >
                     Sign Out

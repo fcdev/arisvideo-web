@@ -1,0 +1,57 @@
+// Prisma schema for ArisVideo
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String   // bcrypt hashed
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  videos    Video[]
+
+  @@map("users")
+}
+
+// Video model - stores metadata for generated videos
+model Video {
+  id        String   @id @default(uuid())
+  videoId   String   @unique @map("video_id") // The animation ID from Python service
+  userId    String?  @map("user_id") // Optional - can be null for anonymous videos
+  prompt    String?
+  videoUrl  String?  @map("video_url") // URL or file path to video
+  duration  Float?   // Video duration in seconds
+  status    String   @default("pending") // pending, processing, completed, failed
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  statuses  VideoStatus[]
+
+  @@index([userId])
+  @@index([videoId])
+  @@map("videos")
+}
+
+// VideoStatus model - tracks generation progress
+model VideoStatus {
+  id        String   @id @default(uuid())
+  videoId   String   @map("video_id") // References Video.videoId (not Video.id)
+  step      Int
+  message   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  video     Video    @relation(fields: [videoId], references: [videoId], onDelete: Cascade)
+
+  @@index([videoId])
+  @@map("video_statuses")
+}

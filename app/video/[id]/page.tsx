@@ -37,30 +37,42 @@ export default function VideoProgressPage({ params }: { params: Promise<{ id: st
     // Start polling for status
     const pollStatus = async () => {
       try {
-        const response = await fetch(`/api/video/${videoId}/status`);
+        const response = await fetch(`/api/videos/status/${videoId}`);
         if (!response.ok) {
           throw new Error('Failed to fetch status');
         }
-        
-        const data: VideoStatus = await response.json();
-        setStatus(data);
-        
+
+        const data = await response.json();
+
+        // Adapt the new status format to the old interface
+        const adaptedStatus: VideoStatus = {
+          video_id: data.video_id,
+          video_url: data.file_path,
+          build_status: data.message || data.status,
+          is_complete: data.status === 'completed',
+          error: data.error,
+          current_step: data.step,
+          total_steps: 4, // Estimate based on generation process
+        };
+
+        setStatus(adaptedStatus);
+
         // If complete, redirect to video page
-        if (data.is_complete && data.video_url) {
+        if (data.status === 'completed' && data.file_path) {
           if (pollingInterval.current) clearInterval(pollingInterval.current);
-          
+
           // Redirect to completion page
           router.push(`/video/${videoId}/complete`);
         }
-        
+
         // If error, stop polling
-        if (data.error) {
+        if (data.status === 'failed' || data.error) {
           if (pollingInterval.current) clearInterval(pollingInterval.current);
-          setError(data.error);
+          setError(data.error || 'Video generation failed');
         }
       } catch (err) {
         console.error('Error polling status:', err);
-        setError('无法获取视频生成状态');
+        setError('Unable to fetch video generation status');
       }
     };
 

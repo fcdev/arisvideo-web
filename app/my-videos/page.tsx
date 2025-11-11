@@ -3,10 +3,24 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Pacifico } from 'next/font/google';
-import { supabase } from '../../lib/supabase';
-import type { User } from '@supabase/supabase-js';
-import type { Video } from '../../types/database';
 import Link from 'next/link';
+
+interface User {
+  id: string;
+  email: string;
+  createdAt: string;
+}
+
+interface Video {
+  id: string;
+  videoId: string;
+  prompt: string | null;
+  videoUrl: string | null;
+  duration: number | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 const pacifico = Pacifico({
   weight: '400',
@@ -35,70 +49,39 @@ export default function MyVideos() {
     const initAuth = async () => {
       if (isAuthenticating.current) return;
       isAuthenticating.current = true;
-      
+
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const currentUser = session?.user ?? null;
-        
-        // Only update user state if it actually changed
-        setUser(prevUser => {
-          if (prevUser?.id !== currentUser?.id) {
-            return currentUser;
-          }
-          return prevUser;
-        });
-        
-        if (!currentUser) {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+        } else {
+          // Not authenticated, redirect to login
           router.push('/login');
         }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        router.push('/login');
       } finally {
         isAuthenticating.current = false;
       }
     };
 
     initAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      const currentUser = session?.user ?? null;
-      
-      // Only update if user actually changed to prevent unnecessary re-renders
-      setUser(prevUser => {
-        if (prevUser?.id !== currentUser?.id) {
-          if (!currentUser) {
-            router.push('/login');
-          }
-          return currentUser;
-        }
-        return prevUser;
-      });
-    });
-
-    return () => subscription.unsubscribe();
   }, [router]);
 
   // Memoized fetch function to prevent unnecessary recreations
   const fetchMyVideos = useCallback(async () => {
     if (!user || isFetchingVideos.current || videosLoaded) return;
-    
+
     isFetchingVideos.current = true;
     setLoading(true);
     setError(null);
 
     try {
-      // Get auth session for API call
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers: any = {
-        'Content-Type': 'application/json',
-      };
-      
-      // Add auth header
-      if (session?.access_token) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
-      }
-      
-      const response = await fetch('/api/my-videos', {
+      // Auth is handled by cookies automatically
+      const response = await fetch('/api/videos/my-videos', {
         method: 'GET',
-        headers,
       });
 
       if (!response.ok) {
@@ -178,7 +161,10 @@ export default function MyVideos() {
               <div className="flex items-center space-x-4">
                 <span className="text-gray-700">Welcome, {user.email}</span>
                 <button
-                  onClick={() => supabase.auth.signOut()}
+                  onClick={async () => {
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                    router.push('/login');
+                  }}
                   className="px-4 py-2 text-gray-600 hover:text-red-600 transition-colors"
                 >
                   Sign Out
@@ -338,7 +324,7 @@ export default function MyVideos() {
                             </>
                           ) : (
                             <Link
-                              href={`/video/${video.video_id}`}
+                              href={`/video/${video.videoId}`}
                               className="flex-1 px-3 py-2 bg-gray-100 text-gray-600 text-sm rounded-lg hover:bg-gray-200 transition-all text-center"
                             >
                               <i className="ri-eye-line mr-1"></i>

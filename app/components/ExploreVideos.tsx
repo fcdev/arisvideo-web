@@ -19,7 +19,7 @@ export default function ExploreVideos() {
   useEffect(() => {
     const fetchVideos = async () => {
       try {
-        const response = await fetch('/api/explore-videos');
+        const response = await fetch('/api/videos/explore?limit=8');
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
           console.error('API Error Response:', errorData);
@@ -31,7 +31,7 @@ export default function ExploreVideos() {
         console.error('Error fetching explore videos:', err);
         console.error('Error details:', err instanceof Error ? err.message : 'Unknown error');
         setError('Failed to load videos. Please try again later.');
-        
+
         // Fallback: Use empty array to show "no videos" state instead of breaking the UI
         setVideos([]);
       } finally {
