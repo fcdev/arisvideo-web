@@ -20,33 +20,33 @@ export function estimateVideoGenerationTime(prompt: string): number {
 }
 
 export function formatCountdown(seconds: number): string {
-  if (seconds <= 0) return '即将完成...';
+  if (seconds <= 0) return 'Wrapping up...';
   
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
   
   if (minutes > 0) {
-    return `${minutes}分${remainingSeconds}秒`;
+    return `${minutes}m ${remainingSeconds}s`;
   }
   
-  return `${remainingSeconds}秒`;
+  return `${remainingSeconds}s`;
 }
 
 export function getProgressMessage(elapsedTime: number, estimatedTime: number): string {
   const progress = (elapsedTime / estimatedTime) * 100;
   
   if (progress < 20) {
-    return '正在分析您的需求...';
+    return 'Analyzing your request...';
   } else if (progress < 40) {
-    return '正在生成视频脚本...';
+    return 'Generating the video script...';
   } else if (progress < 60) {
-    return '正在渲染动画...';
+    return 'Rendering the animation...';
   } else if (progress < 80) {
-    return '正在添加音频解说...';
+    return 'Adding narration...';
   } else if (progress < 95) {
-    return '正在最终处理...';
+    return 'Finalizing output...';
   } else {
-    return '即将完成...';
+    return 'Almost done...';
   }
 }
 

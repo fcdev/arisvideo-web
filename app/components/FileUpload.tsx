@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 interface FileUploadInfo {
   filename: string;
@@ -19,13 +19,23 @@ interface FileUploadResponse {
 interface FileUploadProps {
   onFilesProcessed: (extractedText: string) => void;
   disabled?: boolean;
+  onProcessingChange?: (processing: boolean) => void;
+  onError?: (message: string | null) => void;
+  onFilesCleared?: () => void;
 }
 
-const FileUpload = ({ onFilesProcessed, disabled = false }: FileUploadProps) => {
+const FileUpload = ({
+  onFilesProcessed,
+  disabled = false,
+  onProcessingChange,
+  onError,
+  onFilesCleared
+}: FileUploadProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<FileUploadInfo[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const supportedTypes = [
@@ -67,15 +77,27 @@ const FileUpload = ({ onFilesProcessed, disabled = false }: FileUploadProps) => 
     return errors;
   };
 
-  const processFiles = async (files: FileList) => {
+  useEffect(() => {
+    onProcessingChange?.(isProcessing);
+  }, [isProcessing, onProcessingChange]);
+
+  const reportError = useCallback((message: string) => {
+    setErrorMessage(message);
+    setProcessingStatus('');
+    onError?.(message);
+  }, [onError]);
+
+  const processFiles = useCallback(async (files: FileList) => {
     if (disabled || isProcessing) return;
 
     const errors = validateFiles(files);
     if (errors.length > 0) {
-      alert(errors.join('\n'));
+      reportError(errors.join('\n'));
       return;
     }
 
+    setErrorMessage(null);
+    onError?.(null);
     setIsProcessing(true);
     setProcessingStatus('Uploading files...');
 
@@ -110,12 +132,11 @@ const FileUpload = ({ onFilesProcessed, disabled = false }: FileUploadProps) => 
 
     } catch (error) {
       console.error('File upload error:', error);
-      setProcessingStatus(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      setTimeout(() => setProcessingStatus(''), 5000);
+      reportError(error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [disabled, isProcessing, onError, onFilesProcessed, reportError]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -127,17 +148,21 @@ const FileUpload = ({ onFilesProcessed, disabled = false }: FileUploadProps) => 
     if (files.length > 0) {
       processFiles(files);
     }
-  }, [disabled, isProcessing]);
+  }, [disabled, processFiles]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       processFiles(e.target.files);
     }
-  }, []);
+  }, [processFiles]);
 
   const clearFiles = () => {
     setUploadedFiles([]);
     setProcessingStatus('');
+    setErrorMessage(null);
+    onError?.(null);
+    onFilesProcessed('');
+    onFilesCleared?.();
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -210,23 +235,27 @@ const FileUpload = ({ onFilesProcessed, disabled = false }: FileUploadProps) => 
         </div>
       </div>
 
-      {/* Processing Status */}
-      {processingStatus && !isProcessing && (
-        <div className={`mt-4 p-4 rounded-lg ${
-          processingStatus.startsWith('Error') 
-            ? 'bg-red-50 text-red-700 border border-red-200' 
-            : 'bg-green-50 text-green-700 border border-green-200'
-        }`}>
-          <div className="flex items-center gap-2">
-            <i className={`text-lg ${
-              processingStatus.startsWith('Error') 
-                ? 'ri-error-warning-line' 
-                : 'ri-check-line'
-            }`}></i>
-            <span className="font-medium">{processingStatus}</span>
-          </div>
+      {/* Status + Error messages */}
+      {(processingStatus && !isProcessing) || errorMessage ? (
+        <div className="mt-4 space-y-3">
+          {processingStatus && !isProcessing && (
+            <div className="p-4 rounded-lg bg-green-50 text-green-700 border border-green-200">
+              <div className="flex items-center gap-2">
+                <i className="ri-check-line text-lg"></i>
+                <span className="font-medium">{processingStatus}</span>
+              </div>
+            </div>
+          )}
+          {errorMessage && (
+            <div className="p-4 rounded-lg bg-red-50 text-red-700 border border-red-200">
+              <div className="flex items-center gap-2">
+                <i className="ri-error-warning-line text-lg"></i>
+                <span className="font-medium">{errorMessage}</span>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      ) : null}
 
       {/* Uploaded Files List */}
       {uploadedFiles.length > 0 && (

@@ -43,11 +43,13 @@ export async function GET(
     if (video) {
       // Update video status and file path if completed
       if (pythonStatus.status === 'completed' && pythonStatus.file_path) {
+        // Use proxy URL instead of raw file path
+        const proxyUrl = `/api/videos/file/${video_id}`
         await prisma.video.update({
           where: { videoId: video_id },
           data: {
             status: 'completed',
-            videoUrl: pythonStatus.file_path,
+            videoUrl: proxyUrl,
             duration: pythonStatus.duration || null,
           }
         })
@@ -80,12 +82,17 @@ export async function GET(
       }
     }
 
+    // Return proxy URL instead of raw file path
+    const file_path = pythonStatus.file_path
+      ? `/api/videos/file/${video_id}`
+      : null
+
     return NextResponse.json({
       video_id: video_id,
       status: pythonStatus.status,
       step: pythonStatus.step,
       message: pythonStatus.message,
-      file_path: pythonStatus.file_path,
+      file_path: file_path,
       duration: pythonStatus.duration,
       error: pythonStatus.error,
       updated_at: pythonStatus.updated_at,

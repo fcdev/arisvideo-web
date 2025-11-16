@@ -1,64 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ArisVideo Web
 
-## Getting Started
+Next.js 14 dashboard for generating, tracking, and reviewing ArisVideo renders. It lives in the same repo as the FastAPI generator (`../arisvideo-python`) and proxies every browser request through local API routes before hitting the Python service.
 
-First, run the development server:
+## Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js 18+
+- Running instance of `arisvideo-python` (follow its README, ensure the same `PYTHON_API_KEY`)
+- SQLite/Postgres connection string for Prisma (`DATABASE_URL`)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Configuration
-
-### API Endpoints
-
-The application uses configurable API endpoints. You can customize them by setting environment variables:
-
-Create a `.env.local` file in the root directory with the following variables:
+## Setup
 
 ```bash
-# Video generation endpoint (default: http://api.arisvideo.com/generate)
-VIDEO_GENERATION_ENDPOINT=http://api.arisvideo.com/generate
-
+cd arisvideo-web
+npm install
+npx prisma generate
 ```
 
-### Default Settings
+Create `.env.local`:
 
-Default video generation settings can be modified in `config/api.ts`:
-
-```typescript
-DEFAULT_SETTINGS: {
-  resolution: 'm',
-  include_audio: true,
-  voice: 'nova',
-  language: 'en',
-  sync_method: 'timing_analysis'
-}
+```bash
+PYTHON_SERVICE_URL=http://localhost:8000
+PYTHON_API_KEY=super-secret-matches-python
+DATABASE_URL="file:./dev.db"     # or postgres://...
+JWT_SECRET="change-me"
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-## Learn More
+Only set `NGROK_URL`, `VIDEO_GENERATION_ENDPOINT`, or `VIDEO_STATUS_ENDPOINT` if you need to override the defaults in `config/api.ts`; otherwise the app will infer URLs from `PYTHON_SERVICE_URL`.
 
-To learn more about Next.js, take a look at the following resources:
+## Available Scripts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Command | Purpose |
+| ------- | ------- |
+| `npm run dev` | Start the Next.js dev server on `http://localhost:3000` |
+| `npm run lint` | TypeScript/ESLint checks (run before every commit) |
+| `npm run build && npm start` | Production build and start |
+| `npx prisma db push` | Apply Prisma schema to the configured database |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Smoke test each change by logging in, uploading context files, kicking off a generation, and refreshing the dashboard to confirm status polling works (per `AGENTS.md`).
 
-## Deploy on Vercel
+## Backend Integration
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The API routes under `app/api/` forward requests to `arisvideo-python`:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `/api/upload` → `POST /upload`
+- `/api/videos/generate` → `POST /generate`
+- `/api/videos/status/[id]` → `GET /video`
+- `/api/videos/file/[id]` → `GET /media/videos/:id`
+
+Each route attaches `X-API-Key: process.env.PYTHON_API_KEY`, so keep the shared secret synchronized with the backend’s `PYTHON_API_KEY`. When developing locally, run both servers and keep `.env` + `.env.local` aligned.
+
+## Troubleshooting Checklist
+
+- `401 Missing X-API-Key`: ensure both apps export `PYTHON_API_KEY`.
+- `FetchError connecting to FastAPI`: confirm `PYTHON_SERVICE_URL` is reachable from the Next.js server (especially when tunneling via ngrok).
+- Prisma migration errors: verify `DATABASE_URL`, rerun `npx prisma generate`.
+
+## References
+
+- `../CLAUDE.md` for architecture diagrams.
+- `../MIGRATION_GUIDE.md` for deployment sequencing.
+- `HEADER_REDESIGN.md` & `UI_IMPROVEMENTS.md` for current UX plans.

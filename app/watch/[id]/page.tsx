@@ -206,33 +206,19 @@ export default function VideoPlayerPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className={`text-2xl text-black ${pacifico.className}`}>ArisVideo</Link>
-            
-            {/* Breadcrumb */}
-            <div className="flex items-center space-x-2 text-sm text-gray-500">
-              <Link href="/my-videos" className="hover:text-gray-700 transition-colors font-bold">My Videos</Link>
-              <i className="ri-arrow-right-s-line"></i>
-              
-            </div>
-            
-            <Link
-              href="/my-videos"
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <i className="ri-arrow-left-line"></i>
-              Back to Videos
-            </Link>
-          </div>
-        </div>
-      </nav>
-
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-6 py-8">
-        
+        {/* Breadcrumb */}
+        <div className="mb-6">
+          <nav className="flex items-center space-x-2 text-sm text-gray-500">
+            <Link href="/" className="hover:text-gray-700 transition-colors">Home</Link>
+            <i className="ri-arrow-right-s-line"></i>
+            <Link href="/my-videos" className="hover:text-gray-700 transition-colors">My Videos</Link>
+            <i className="ri-arrow-right-s-line"></i>
+            <span className="text-gray-900 font-medium">Watch Video</span>
+          </nav>
+        </div>
+
         {/* Video Title */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-black mb-2">
@@ -280,7 +266,7 @@ export default function VideoPlayerPage({ params }: { params: Promise<{ id: stri
                 className="flex items-center justify-center gap-3 px-6 py-3 bg-white border-2 border-gray-200 text-gray-700 rounded-xl hover:border-primary hover:text-primary transition-all font-medium"
               >
                 <i className={copied ? "ri-check-line text-lg" : "ri-share-line text-lg"}></i>
-                {copied ? '已复制分享链接!' : 'Share Video'}
+                {copied ? 'Copied the share link!' : 'Share Video'}
               </button>
             </div>
 

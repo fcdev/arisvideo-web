@@ -45,9 +45,9 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
 
       if (!response.ok) {
         if (response.status === 404) {
-          throw new Error(`找不到视频ID为 ${videoId} 的记录。请检查链接是否正确，或者视频可能已被删除。`);
+          throw new Error(`No record found for video ID ${videoId}. Double-check the link or the video may have been removed.`);
         }
-        throw new Error(`获取视频失败: ${response.statusText}`);
+        throw new Error(`Failed to fetch video: ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -64,14 +64,14 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
         // Still generating, redirect back to progress page
         router.push(`/video/${videoId}`);
       } else if (data.status === 'failed') {
-        throw new Error(data.error || '视频生成失败');
+        throw new Error(data.error || 'Video generation failed');
       } else {
-        throw new Error('视频尚未完成生成');
+        throw new Error('Video is not finished yet');
       }
 
     } catch (err) {
       console.error('Error fetching video:', err);
-      setError(err instanceof Error ? err.message : '获取视频失败');
+      setError(err instanceof Error ? err.message : 'Unable to load video');
     } finally {
       setLoading(false);
     }
@@ -108,8 +108,8 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
     if (!videoData?.video_url || !navigator.share) return;
     
     navigator.share({
-      title: '我的AI生成视频',
-      text: '看看AI为我生成的教育视频！',
+      title: 'My AI-generated video',
+      text: 'Check out this educational video I built with ArisVideo!',
       url: videoData.video_url
     });
   };
@@ -119,7 +119,7 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">加载中...</p>
+          <p className="text-gray-600">Loading...</p>
         </div>
       </div>
     );
@@ -132,13 +132,13 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <i className="ri-error-warning-line text-red-600 text-3xl"></i>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">加载失败</h2>
-          <p className="text-gray-600 mb-6">{error || '无法加载视频'}</p>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Failed to load</h2>
+          <p className="text-gray-600 mb-6">{error || 'Unable to load video'}</p>
           <button
             onClick={() => router.push('/')}
             className="px-6 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
           >
-            返回首页
+            Back to home
           </button>
         </div>
       </div>
@@ -157,7 +157,7 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <i className="ri-arrow-left-line"></i>
-              返回首页
+              Back to home
             </button>
           </div>
         </div>
@@ -171,10 +171,10 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
             <i className="ri-check-line text-white text-4xl"></i>
           </div>
           <h1 className="text-4xl font-bold text-gray-800 mb-4">
-            🎉 视频生成成功！
+            🎉 Video ready!
           </h1>
           <p className="text-xl text-gray-600">
-            您的AI教育视频已经准备就绪
+            Your AI-generated education video is all set
           </p>
         </div>
 
@@ -190,7 +190,7 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
                 style={{ maxHeight: '600px' }}
               >
                 <source src={videoData.video_url} type="video/mp4" />
-                您的浏览器不支持视频播放。
+                Your browser does not support video playback.
               </video>
             </div>
 
@@ -201,7 +201,7 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
                 className="flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl hover:shadow-lg transform hover:scale-105 transition-all font-bold"
               >
                 <i className="ri-download-cloud-line text-xl"></i>
-                下载视频
+                Download video
               </button>
               
               <button
@@ -209,7 +209,7 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
                 className="flex items-center justify-center gap-3 px-6 py-4 bg-white border-2 border-gray-300 text-gray-700 rounded-2xl hover:border-blue-500 hover:text-blue-600 transition-all font-bold"
               >
                 <i className={copied ? "ri-check-line text-xl" : "ri-link text-xl"}></i>
-                {copied ? '已复制!' : '复制链接'}
+                {copied ? 'Copied!' : 'Copy link'}
               </button>
               
               <button
@@ -217,7 +217,7 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
                 className="flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-2xl hover:shadow-lg transform hover:scale-105 transition-all font-bold"
               >
                 <i className="ri-share-line text-xl"></i>
-                分享视频
+                Share video
               </button>
             </div>
 
@@ -225,21 +225,21 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
             <div className="mt-8 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl">
               <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <i className="ri-information-line text-blue-600"></i>
-                视频信息
+                Video info
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div className="flex items-center gap-3">
                   <i className="ri-file-video-line text-gray-500"></i>
-                  <span className="text-gray-600">格式: MP4</span>
+                  <span className="text-gray-600">Format: MP4</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <i className="ri-hd-line text-gray-500"></i>
-                  <span className="text-gray-600">质量: 高清</span>
+                  <span className="text-gray-600">Quality: HD</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <i className="ri-time-line text-gray-500"></i>
                   <span className="text-gray-600">
-                    生成时间: {videoData.created_at ? new Date(videoData.created_at).toLocaleString('zh-CN') : '未知'}
+                    Generated: {videoData.created_at ? new Date(videoData.created_at).toLocaleString('en-US') : 'Unknown'}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -253,13 +253,13 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
 
         {/* Call to Action */}
         <div className="text-center">
-          <p className="text-gray-600 mb-6">想要生成更多视频？</p>
+          <p className="text-gray-600 mb-6">Ready to make another video?</p>
           <button
             onClick={() => router.push('/')}
             className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full font-bold hover:shadow-lg transform hover:scale-105 transition-all text-lg"
           >
             <i className="ri-add-line mr-2"></i>
-            生成新视频
+            Create another video
           </button>
         </div>
 
@@ -269,9 +269,9 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <i className="ri-lightbulb-line text-blue-600 text-xl"></i>
             </div>
-            <h3 className="font-bold text-gray-800 mb-2">小贴士</h3>
+            <h3 className="font-bold text-gray-800 mb-2">Pro tip</h3>
             <p className="text-sm text-gray-600">
-              您可以将视频分享到社交媒体，让更多人看到AI的创作能力
+              Share the video on social media to show off what AI can create
             </p>
           </div>
           
@@ -279,9 +279,9 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <i className="ri-shield-check-line text-green-600 text-xl"></i>
             </div>
-            <h3 className="font-bold text-gray-800 mb-2">永久保存</h3>
+            <h3 className="font-bold text-gray-800 mb-2">Always available</h3>
             <p className="text-sm text-gray-600">
-              您的视频已永久保存在云端，随时可以访问和下载
+              Your video stays in the cloud so you can access or download it anytime
             </p>
           </div>
           
@@ -289,9 +289,9 @@ export default function VideoCompletePage({ params }: { params: Promise<{ id: st
             <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <i className="ri-magic-line text-purple-600 text-xl"></i>
             </div>
-            <h3 className="font-bold text-gray-800 mb-2">更多功能</h3>
+            <h3 className="font-bold text-gray-800 mb-2">More coming soon</h3>
             <p className="text-sm text-gray-600">
-              即将推出视频编辑、字幕调整等更多强大功能
+              Video editing, subtitle tweaks, and more powerful tools are on the way
             </p>
           </div>
         </div>

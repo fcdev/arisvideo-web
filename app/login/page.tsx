@@ -1,7 +1,17 @@
 import { Suspense } from 'react';
+import { Metadata } from 'next';
 import { Pacifico } from 'next/font/google';
 import Link from 'next/link';
 import LoginForm from './LoginForm';
+
+export const metadata: Metadata = {
+  title: 'Login',
+  description: 'Sign in to ArisVideo to create and manage your AI-generated educational videos.',
+  robots: {
+    index: false,
+    follow: true,
+  },
+};
 
 const pacifico = Pacifico({
   weight: '400',

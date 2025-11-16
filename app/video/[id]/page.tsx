@@ -98,8 +98,8 @@ export default function VideoProgressPage({ params }: { params: Promise<{ id: st
             <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
               <div className="w-10 h-10 border-3 border-white/50 border-t-white rounded-full animate-spin"></div>
             </div>
-            <h1 className="text-3xl font-bold mb-2">正在生成您的视频</h1>
-            <p className="text-blue-100 text-lg">请稍候，AI正在为您创作精彩内容...</p>
+            <h1 className="text-3xl font-bold mb-2">Your video is on the way</h1>
+            <p className="text-blue-100 text-lg">Hang tight while AI crafts something great...</p>
           </div>
           
           {/* Status Section */}
@@ -113,7 +113,7 @@ export default function VideoProgressPage({ params }: { params: Promise<{ id: st
                   <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
                 </div>
                 <span className="text-blue-800 font-semibold text-lg">
-                  {status?.build_status || '正在初始化...'}
+                  {status?.build_status || 'Booting up...'}
                 </span>
               </div>
             </div>
@@ -123,7 +123,7 @@ export default function VideoProgressPage({ params }: { params: Promise<{ id: st
               <div className="mb-8">
                 <h3 className="text-lg font-semibold text-gray-800 mb-6 flex items-center gap-3 justify-center">
                   <i className="ri-list-check-line text-blue-600"></i>
-                  生成状态
+                  Generation status
                 </h3>
                 <div className="space-y-4">
                   {status.steps.map((step, index) => {
@@ -175,7 +175,7 @@ export default function VideoProgressPage({ params }: { params: Promise<{ id: st
                         {isCurrentStep && (
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-sm text-blue-600 font-medium">进行中</span>
+                            <span className="text-sm text-blue-600 font-medium">In progress</span>
                           </div>
                         )}
                       </div>
@@ -193,7 +193,7 @@ export default function VideoProgressPage({ params }: { params: Promise<{ id: st
                 <details className="group">
                   <summary className="cursor-pointer text-sm text-gray-600 hover:text-gray-800 flex items-center gap-2">
                     <i className="ri-terminal-box-line"></i>
-                    查看详细日志
+                    View detailed logs
                     <i className="ri-arrow-down-s-line group-open:rotate-180 transition-transform"></i>
                   </summary>
                   <div className="mt-4 bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-xs overflow-x-auto max-h-48 overflow-y-auto">
@@ -213,14 +213,14 @@ export default function VideoProgressPage({ params }: { params: Promise<{ id: st
                     <i className="ri-error-warning-line text-red-600 text-xl"></i>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-red-800 font-bold mb-1">生成失败</h3>
+                    <h3 className="text-red-800 font-bold mb-1">Generation failed</h3>
                     <p className="text-red-700">{error}</p>
                     <button 
                       onClick={() => router.push('/')}
                       className="mt-4 text-sm text-red-600 hover:text-red-800 font-medium flex items-center gap-1"
                     >
                       <i className="ri-arrow-left-line"></i>
-                      返回首页重试
+                      Go back home and try again
                     </button>
                   </div>
                 </div>
@@ -231,13 +231,13 @@ export default function VideoProgressPage({ params }: { params: Promise<{ id: st
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6">
               <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
                 <i className="ri-lightbulb-line text-yellow-500"></i>
-                您知道吗？
+                Did you know?
               </h3>
               <div className="space-y-2 text-sm text-gray-600">
-                <p>• AI会根据您的问题自动选择最合适的动画风格</p>
-                <p>• 生成的视频包含专业的语音解说</p>
-                <p>• 每个视频都是独一无二的创作</p>
-                <p>• 系统会实时显示每个生成步骤的详细状态</p>
+                <p>• AI picks the animation style that best fits your prompt</p>
+                <p>• Every render includes professional narration when enabled</p>
+                <p>• No two videos are the same—each is generated from scratch</p>
+                <p>• You can watch every generation step update in real time</p>
               </div>
             </div>
           </div>
@@ -245,10 +245,10 @@ export default function VideoProgressPage({ params }: { params: Promise<{ id: st
           {/* Footer */}
           <div className="bg-gray-50 px-8 py-4">
             <div className="flex items-center justify-between text-sm text-gray-500">
-              <span>视频ID: {videoId || '加载中...'}</span>
+              <span>Video ID: {videoId || 'Loading...'}</span>
               <span className="flex items-center gap-2">
                 <i className="ri-shield-check-line text-green-500"></i>
-                安全生成中
+                Secure generation in progress
               </span>
             </div>
           </div>
@@ -256,7 +256,7 @@ export default function VideoProgressPage({ params }: { params: Promise<{ id: st
         
         {/* Help Text */}
         <p className="text-center text-gray-500 text-sm mt-6">
-          页面会自动刷新状态，无需手动操作
+          This page refreshes automatically—no manual action needed
         </p>
       </div>
     </div>

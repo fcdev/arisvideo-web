@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Pacifico } from 'next/font/google';
 import Link from 'next/link';
+import Head from 'next/head';
 
 interface User {
   id: string;
@@ -146,35 +147,15 @@ export default function MyVideos() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-7xl mx-auto bg-white overflow-hidden min-h-[85vh] w-[90%]">
-        {/* Navigation */}
-        <nav className="flex items-center justify-between px-8 py-6">
-          <Link href="/" className={`text-2xl text-black ${pacifico.className}`}>ArisVideo</Link>
-          <div className="flex items-center space-x-12">
-            <Link href="/my-videos" className="text-primary font-bold border-b-2 border-primary">My Videos</Link>
-            {/* <a href="#" className="text-gray-800 hover:text-primary transition-colors">Invite&Earn</a> */}
-            {/* <a href="#" className="text-gray-800 hover:text-primary transition-colors">Love Letter💗</a> */}
-          </div>
-          <div className="flex items-center">
-            {user && (
-              <div className="flex items-center space-x-4">
-                <span className="text-gray-700">Welcome, {user.email}</span>
-                <button
-                  onClick={async () => {
-                    await fetch('/api/auth/logout', { method: 'POST' });
-                    router.push('/login');
-                  }}
-                  className="px-4 py-2 text-gray-600 hover:text-red-600 transition-colors"
-                >
-                  Sign Out
-                </button>
-              </div>
-            )}
-          </div>
-        </nav>
-
-        {/* Main Content */}
+    <>
+      <Head>
+        <title>My Videos | ArisVideo</title>
+        <meta name="description" content="View and manage all your AI-generated educational videos in one place." />
+        <meta name="robots" content="noindex, follow" />
+      </Head>
+      <div className="min-h-screen bg-white">
+        <div className="max-w-7xl mx-auto bg-white overflow-hidden min-h-[85vh] w-[90%]">
+          {/* Main Content */}
         <div className="px-8 pt-8 pb-24">
           {/* Page Header */}
           <div className="text-center mb-12">
@@ -371,5 +352,6 @@ export default function MyVideos() {
         </div>
       </div>
     </div>
+    </>
   );
 }

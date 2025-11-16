@@ -1,0 +1,10 @@
+# ArisVideo - Robots.txt
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /login
+Disallow: /my-videos
+Disallow: /video/
+
+Sitemap: https://arisvideo.com/sitemap.xml

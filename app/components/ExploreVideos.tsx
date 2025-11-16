@@ -5,13 +5,19 @@ import Link from 'next/link';
 
 interface Video {
   id: string;
-  video_id: string;
-  video_url: string | null;
-  user_name: string | null;
+  videoId: string;
+  videoUrl: string | null;
+  user: {
+    email: string;
+  } | null;
   prompt: string | null;
 }
 
-export default function ExploreVideos() {
+interface ExploreVideosProps {
+  showHeader?: boolean;
+}
+
+export default function ExploreVideos({ showHeader = true }: ExploreVideosProps) {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,15 +60,15 @@ export default function ExploreVideos() {
       const cleanTitle = video.prompt.replace(/\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]/g, '').trim();
       return cleanTitle.length > 60 ? `${cleanTitle.substring(0, 60)}...` : cleanTitle;
     }
-    return `Video ${video.video_id.substring(0, 8)}...`;
+    return `Video ${video.videoId.substring(0, 8)}...`;
   };
 
   const getAuthorName = (video: Video) => {
-    if (video.user_name) {
+    if (video.user?.email) {
       // Extract name part before @ if it's an email
-      const name = video.user_name.includes('@') 
-        ? video.user_name.split('@')[0] 
-        : video.user_name;
+      const name = video.user.email.includes('@')
+        ? video.user.email.split('@')[0]
+        : video.user.email;
       return name.length > 20 ? `${name.substring(0, 20)}...` : name;
     }
     return 'Anonymous';
@@ -72,10 +78,12 @@ export default function ExploreVideos() {
     return (
       <div className="py-24 bg-gradient-to-b from-[#FFF5F2] to-white">
         <div className="max-w-7xl mx-auto px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-5xl font-bold text-black">Explore Videos</h2>
-          </div>
-          
+          {showHeader && (
+            <div className="text-center mb-12">
+              <h2 className="text-5xl font-bold text-black">Explore Videos</h2>
+            </div>
+          )}
+
           {/* Loading skeleton */}
           <div className="grid grid-cols-4 gap-6">
             {Array.from({ length: 8 }).map((_, index) => (
@@ -97,7 +105,9 @@ export default function ExploreVideos() {
     return (
       <div className="py-24 bg-gradient-to-b from-[#FFF5F2] to-white">
         <div className="max-w-7xl mx-auto px-8 text-center">
-          <h2 className="text-5xl font-bold text-black mb-8">Explore Videos</h2>
+          {showHeader && (
+            <h2 className="text-5xl font-bold text-black mb-8">Explore Videos</h2>
+          )}
           {error ? (
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 max-w-md mx-auto">
               <div className="flex items-center gap-3 mb-2">
@@ -117,33 +127,22 @@ export default function ExploreVideos() {
   return (
     <div className="py-24 bg-gradient-to-b from-[#FFF5F2] to-white">
       <div className="max-w-7xl mx-auto px-8">
-        <div className="text-center mb-12">
-          <h2 className="text-5xl font-bold text-black">Explore Videos</h2>
-          {/* Search functionality temporarily disabled */}
-          {/* <div className="flex items-center gap-4">
-            <div className="relative">
-              <input type="text" placeholder="Search videos" className="w-[300px] px-4 py-2 pr-10 rounded-full bg-white border-2 border-gray-100 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none text-sm text-black" />
-              <i className="ri-search-line absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-            </div>
-            <div className="relative">
-              <button className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border-2 border-gray-100 hover:border-gray-200 text-sm text-black">
-                <span>Recent</span>
-                <i className="ri-arrow-down-s-line"></i>
-              </button>
-            </div>
-          </div> */}
-        </div>
+        {showHeader && (
+          <div className="text-center mb-12">
+            <h2 className="text-5xl font-bold text-black">Explore Videos</h2>
+          </div>
+        )}
         
         <div className="grid grid-cols-4 gap-6">
           {videos.map((video, index) => (
-            <Link 
-              key={video.video_id} 
-              href={`/watch/${video.video_id}`}
+            <Link
+              key={video.videoId}
+              href={`/watch/${video.videoId}`}
               className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow group cursor-pointer"
             >
               <div className="relative">
-                {video.video_url ? (
-                  <video 
+                {video.videoUrl ? (
+                  <video
                     className="w-full aspect-video object-cover rounded-t-xl"
                     preload="metadata"
                     muted
@@ -155,7 +154,7 @@ export default function ExploreVideos() {
                       }
                     }}
                   >
-                    <source src={video.video_url} type="video/mp4" />
+                    <source src={video.videoUrl} type="video/mp4" />
                   </video>
                 ) : (
                   <div className="w-full aspect-video bg-gray-200 rounded-t-xl flex items-center justify-center">

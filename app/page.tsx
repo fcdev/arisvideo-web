@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Pacifico } from 'next/font/google';
 import ExploreVideos from './components/ExploreVideos';
+import FileUpload from './components/FileUpload';
+import { generateVideoRequest } from '@/lib/apiClient';
+import type { VideoResponse } from '@/lib/apiClient';
 
 interface User {
   id: string;
@@ -21,24 +23,14 @@ const pacifico = Pacifico({
   adjustFontFallback: false,
 });
 
-interface VideoResponse {
-  video_id: string;
-  video_url: string;
-  status: string;
-  message: string;
-}
-
 export default function Home() {
   const router = useRouter();
   const [isVisible, setIsVisible] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [prompt, setPrompt] = useState('');
   const [fileContext, setFileContext] = useState<string>('');
-  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
   const [isProcessingFiles, setIsProcessingFiles] = useState(false);
 
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -116,108 +108,6 @@ export default function Home() {
       .catch(() => setUser(null));
   }, []);
 
-  const handleFileUpload = async (files: FileList) => {
-    if (!files || files.length === 0) return;
-    
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    const supportedTypes = [
-      'application/pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/msword',
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'image/bmp',
-      'image/tiff',
-      'text/plain'
-    ];
-
-    // Validate files
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (file.size > maxSize) {
-        setError(`File ${file.name} is too large (max 50MB)`);
-        return;
-      }
-      if (!supportedTypes.includes(file.type)) {
-        setError(`File type ${file.type} is not supported`);
-        return;
-      }
-    }
-
-    setIsProcessingFiles(true);
-    setError(null);
-
-    try {
-      const formData = new FormData();
-      for (let i = 0; i < files.length; i++) {
-        formData.append('files', files[i]);
-      }
-
-      // Auth is handled by cookies automatically
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `Upload failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      setUploadedFiles(result.files);
-      
-      if (result.combined_text) {
-        setFileContext(result.combined_text);
-      }
-
-    } catch (error) {
-      console.error('File upload error:', error);
-      setError(error instanceof Error ? error.message : 'File upload failed');
-    } finally {
-      setIsProcessingFiles(false);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (!isSubmitting && !isProcessingFiles) {
-      setIsDragging(true);
-    }
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    // Only set dragging to false if we're actually leaving the textarea container
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setIsDragging(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    if (isSubmitting || isProcessingFiles) return;
-    
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFileUpload(files);
-    }
-  };
-
-  const clearUploadedFiles = () => {
-    setUploadedFiles([]);
-    setFileContext('');
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
   const generateVideo = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -231,49 +121,23 @@ export default function Home() {
     
     setIsSubmitting(true);
     setError(null);
-    setVideoUrl(null);
 
     try {
-      console.log('Starting video generation...');
-
-      // Auth is handled by cookies automatically
-      const response = await fetch('/api/videos/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: prompt.trim(),
-          include_audio: true,
-          voice: 'nova',
-          language: /[\u4e00-\u9fff]/.test(prompt) ? 'zh' : 'en',
-          sync_method: 'timing_analysis',
-          uploaded_files_context: fileContext || undefined
-        }),
+      const data: VideoResponse = await generateVideoRequest({
+        prompt: prompt.trim(),
+        include_audio: true,
+        voice: 'nova',
+        language: /[\u4e00-\u9fff]/.test(prompt) ? 'zh' : 'en',
+        sync_method: 'timing_analysis',
+        uploaded_files_context: fileContext || undefined
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('API Error:', errorData);
-        throw new Error(errorData.error || `Failed to generate video: ${response.statusText}`);
-      }
-
-      const data: VideoResponse = await response.json();
-      console.log('API Response:', data);
-      
-      // Immediately navigate to progress page with video ID
       if (data.video_id) {
-        console.log('Navigating to:', `/video/${data.video_id}`);
         router.push(`/video/${data.video_id}`);
       } else {
-        console.error('No video_id in response:', data);
         throw new Error(data.message || 'Failed to generate video');
       }
     } catch (err) {
-      console.error('Generate video error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setIsSubmitting(false);
@@ -491,47 +355,6 @@ export default function Home() {
         `}</style>
 
         <div className="max-w-7xl mx-auto bg-white overflow-hidden min-h-[85vh] w-[90%]">
-          {/* Navigation */}
-          <nav className="flex items-center justify-between px-8 py-6">
-            <a href="#" className={`text-2xl text-black ${pacifico.className}`}>ArisVideo</a>
-            <div className="flex items-center space-x-12">
-              <Link href="/my-videos" className="text-gray-800 hover:text-primary transition-colors font-bold">My Videos</Link>
-              {/* <a href="#" className="text-gray-800 hover:text-primary transition-colors">Invite&Earn</a> */}
-              {/* <a href="#" className="text-gray-800 hover:text-primary transition-colors">Love Letter💗</a> */}
-            </div>
-            <div className="flex items-center">
-              {/* Auth component */}
-              {user ? (
-                <div className="flex items-center space-x-4">
-                  <span className="text-gray-700">Welcome, {user.email}</span>
-                  <button
-                    onClick={async () => {
-                      await fetch('/api/auth/logout', { method: 'POST' });
-                      setUser(null);
-                      router.push('/');
-                    }}
-                    className="px-4 py-2 text-gray-600 hover:text-red-600 transition-colors"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center space-x-3">
-                  <Link href="/login">
-                    <button className="px-6 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-full hover:from-primary/90 hover:to-secondary/90 transition-all">
-                      Log In
-                    </button>
-                  </Link>
-                  <Link href="/login?mode=signup">
-                    <button className="px-6 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-full hover:from-primary/90 hover:to-secondary/90 transition-all">
-                      Sign Up
-                    </button>
-                  </Link>
-                </div>
-              )}
-            </div>
-          </nav>
-
           {/* Hero Section */}
           <div className="px-8 pt-16 pb-24 flex flex-col items-center justify-center scale-in">
             {/* Character */}
@@ -561,25 +384,16 @@ export default function Home() {
               {/* Search Bar */}
               <div className="relative w-full max-w-4xl mx-auto mb-16">
                 <form onSubmit={generateVideo} className="relative flex flex-col items-center gap-6 transition-all duration-500">
-                  <div 
-                    className="relative w-full group"
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                  >
+                  <div className="relative w-full group">
                     <textarea 
                       value={prompt} 
                       onChange={(e) => setPrompt(e.target.value)} 
-                      placeholder="Enter your question (e.g. How do I solve quadratic equations) or drag files here..." 
-                      className={`w-full min-h-[160px] p-8 pb-14 text-xl text-black bg-white rounded-3xl shadow-lg border-2 transition-all duration-300 disabled:bg-gray-50 disabled:border-gray-300 disabled:cursor-not-allowed placeholder:text-gray-400 resize-none focus:ring-4 focus:ring-primary/20 focus:outline-none ${
-                        isDragging 
-                          ? 'border-primary bg-primary/5 border-dashed' 
-                          : 'border-primary hover:border-primary/80 focus:border-primary'
-                      }`}
+                      placeholder="Enter your question (e.g. How do I solve quadratic equations?)" 
+                      className="w-full min-h-[160px] p-8 pb-14 text-xl text-black bg-white rounded-3xl shadow-lg border-2 border-primary transition-all duration-300 disabled:bg-gray-50 disabled:border-gray-300 disabled:cursor-not-allowed placeholder:text-gray-400 resize-none focus:ring-4 focus:ring-primary/20 focus:outline-none hover:border-primary/80 focus:border-primary"
                       disabled={isSubmitting || isProcessingFiles}
                     ></textarea>
                     
-                    {/* Character count and file upload button */}
+                    {/* Character count & context indicator */}
                     <div className="absolute bottom-2 left-4 right-4 flex items-center justify-between text-sm">
                       <div className="text-gray-500">
                         <span className={prompt.length > 500 ? 'text-red-500' : 'text-gray-500'}>
@@ -591,117 +405,26 @@ export default function Home() {
                           </span>
                         )}
                       </div>
-                      
-                      {/* File upload button */}
-                      <div className="flex items-center gap-2">
-                        {isProcessingFiles && (
-                          <div className="flex items-center gap-2 text-primary">
-                            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                            <span className="text-xs">Processing...</span>
-                          </div>
-                        )}
-                        <input
-                          type="file"
-                          multiple
-                          accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.txt"
-                          onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
-                          className="hidden"
-                          id="file-upload"
-                          disabled={isSubmitting || isProcessingFiles}
-                        />
-                        <label 
-                          htmlFor="file-upload"
-                          className={`cursor-pointer p-2 transition-all duration-200 z-20 relative ${
-                            isSubmitting || isProcessingFiles
-                              ? 'text-gray-400 cursor-not-allowed'
-                              : 'text-gray-500 hover:text-primary'
-                          }`}
-                          title="Upload files (PDF, Word, Images, Text)"
-                        >
-                          <span className="text-3xl">+</span>
-                        </label>
-                      </div>
-                    </div>
-                    
-                    {/* Drag overlay */}
-                    {isDragging && (
-                      <div className="absolute inset-0 rounded-3xl bg-primary/10 border-2 border-primary border-dashed flex items-center justify-center pointer-events-none z-10">
-                        <div className="bg-white rounded-2xl p-6 shadow-lg border border-primary/20">
-                          <div className="text-primary text-lg font-medium flex items-center gap-3">
-                            <i className="ri-upload-cloud-2-line text-3xl"></i>
-                            <div>
-                              <div className="font-bold">Drop files here</div>
-                              <div className="text-sm text-gray-600 font-normal">
-                                PDF, Word, Images, Text files
-                              </div>
-                            </div>
-                          </div>
+                      {isProcessingFiles && (
+                        <div className="flex items-center gap-2 text-primary">
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                          <span className="text-xs">Processing files...</span>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                     
                     {/* Focus highlight effect */}
                     <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-primary/5 to-secondary/5 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-                    {/* Image upload and voice input buttons - Temporarily hidden */}
-                    {/* <div className="absolute bottom-6 right-6 flex items-center gap-3">
-                      <button 
-                        type="button" 
-                        className="w-12 h-12 flex items-center justify-center rounded-xl bg-white hover:bg-primary/10 border border-gray-200 hover:border-primary/30 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 group"
-                        title="Upload image"
-                      >
-                        <i className="ri-image-line text-xl text-gray-600 group-hover:text-primary transition-colors"></i>
-                      </button>
-                      <button 
-                        type="button" 
-                        className="w-12 h-12 flex items-center justify-center rounded-xl bg-white hover:bg-secondary/10 border border-gray-200 hover:border-secondary/30 transition-all duration-200 shadow-sm hover:shadow-md transform hover:scale-105 group"
-                        title="Voice input"
-                      >
-                        <i className="ri-mic-line text-xl text-gray-600 group-hover:text-secondary transition-colors"></i>
-                      </button>
-                    </div> */}
                   </div>
-                  
-                  {/* Uploaded Files Display */}
-                  {uploadedFiles.length > 0 && (
-                    <div className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                          <i className="ri-attachment-line"></i>
-                          <span>Uploaded Files ({uploadedFiles.length})</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={clearUploadedFiles}
-                          className="text-xs text-red-600 hover:text-red-800 font-medium flex items-center gap-1"
-                          disabled={isSubmitting || isProcessingFiles}
-                        >
-                          <i className="ri-delete-bin-line"></i>
-                          Clear all
-                        </button>
-                      </div>
-                      
-                      <div className="flex flex-wrap gap-2">
-                        {uploadedFiles.map((file, index) => (
-                          <div key={index} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-gray-200">
-                            <i className={`text-sm ${
-                              file.content_type.includes('pdf') ? 'ri-file-pdf-line text-red-500' :
-                              file.content_type.includes('word') || file.content_type.includes('document') ? 'ri-file-word-line text-blue-500' :
-                              file.content_type.includes('image') ? 'ri-image-line text-green-500' :
-                              'ri-file-text-line text-gray-500'
-                            }`}></i>
-                            <span className="text-xs font-medium text-gray-700 truncate max-w-[120px]">
-                              {file.filename}
-                            </span>
-                            {file.extracted_text ? (
-                              <i className="ri-check-line text-xs text-green-500" title="Text extracted"></i>
-                            ) : (
-                              <i className="ri-close-line text-xs text-gray-400" title="No text found"></i>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+
+                  <div className="w-full">
+                    <FileUpload
+                      onFilesProcessed={(text) => setFileContext(text)}
+                      disabled={isSubmitting}
+                      onProcessingChange={setIsProcessingFiles}
+                      onError={setError}
+                    />
+                  </div>
                   
                   <button 
                     type="submit" 
@@ -760,126 +483,7 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Success & Video Display */}
-                {videoUrl && (
-                  <div className="mt-12 w-full max-w-5xl mx-auto animate-in slide-in-from-bottom-8 fade-in duration-700">
-                    {/* Success Header */}
-                    <div className="text-center mb-8">
-                      <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-green-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-                        <i className="ri-check-line text-white text-3xl"></i>
-                      </div>
-                      <h3 className="text-3xl font-bold text-black mb-2">
-                        🎉 Your Video is Ready!
-                      </h3>
-                      <p className="text-lg text-gray-600">
-                        Here's your AI-generated educational video
-                      </p>
-                    </div>
-
-                    {/* Video Container */}
-                    <div className="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-2xl overflow-hidden border border-primary/10">
-                      <div className="p-8">
-                        {/* Video Player */}
-                        <div className="relative rounded-2xl overflow-hidden shadow-xl bg-black">
-                          <video 
-                            controls 
-                            className="w-full h-auto"
-                            style={{ maxHeight: '500px' }}
-                            poster="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzMzMzMzMyIvPgogIDx0ZXh0IHg9IjUwIiB5PSI1MCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkFyaXNWaWRlbzwvdGV4dD4KPC9zdmc+"
-                          >
-                            <source src={videoUrl} type="video/mp4" />
-                            Your browser does not support the video tag.
-                          </video>
-                          
-                          {/* Play overlay */}
-                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center pointer-events-none">
-                            <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center backdrop-blur-sm">
-                              <i className="ri-play-fill text-2xl text-gray-800 ml-1"></i>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="mt-6 flex flex-wrap gap-4 justify-center">
-                          <a 
-                            href={videoUrl} 
-                            download 
-                            className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-2xl hover:from-primary/90 hover:to-secondary/90 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 font-bold"
-                          >
-                            <i className="ri-download-cloud-line text-lg"></i>
-                            Download Video
-                          </a>
-                          <button 
-                            onClick={(event) => {
-                              navigator.clipboard.writeText(videoUrl);
-                              // Add visual feedback
-                              const btn = event.currentTarget;
-                              const originalContent = btn.innerHTML;
-                              btn.innerHTML = '<i class="ri-check-line text-lg"></i>Copied!';
-                              setTimeout(() => {
-                                btn.innerHTML = originalContent;
-                              }, 2000);
-                            }}
-                            className="flex items-center gap-3 px-6 py-3 bg-white border-2 border-primary text-primary rounded-2xl hover:bg-primary hover:text-white transition-all shadow-lg hover:shadow-xl transform hover:scale-105 font-bold"
-                          >
-                            <i className="ri-link text-lg"></i>
-                            Copy Link
-                          </button>
-                          <button 
-                            onClick={() => {
-                              if (navigator.share) {
-                                navigator.share({
-                                  title: 'Check out my AI-generated video!',
-                                  text: 'I created this educational video with ArisVideo',
-                                  url: videoUrl
-                                });
-                              }
-                            }}
-                            className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl hover:from-blue-600 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 font-bold"
-                          >
-                            <i className="ri-share-line text-lg"></i>
-                            Share
-                          </button>
-                        </div>
-
-                        {/* Video Info */}
-                        <div className="mt-6 p-4 bg-gradient-to-r from-primary/5 to-secondary/5 rounded-2xl border border-primary/10">
-                          <div className="flex items-center justify-between text-sm text-gray-600">
-                            <div className="flex items-center gap-2">
-                              <i className="ri-time-line"></i>
-                              <span>Generated just now</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <i className="ri-file-line"></i>
-                              <span>MP4 Format</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <i className="ri-hd-line"></i>
-                              <span>HD Quality</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Generate Another Button */}
-                    <div className="text-center mt-8">
-                      <button
-                        onClick={() => {
-                          setVideoUrl(null);
-                          setPrompt('');
-                          setError(null);
-                          setUploadedFiles([]);
-                          setFileContext('');
-                        }}
-                        className="px-8 py-3 text-primary hover:text-white bg-white hover:bg-primary border-2 border-primary rounded-full font-bold transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
-                      >
-                        <i className="ri-add-line mr-2"></i>
-                        Generate Another Video
-                      </button>
-                    </div>
-                  </div>
-                )}
+                {/* Success panel handled on /video/[id] */}
               </div>
 
               {/* Topic Tags */}
@@ -959,7 +563,7 @@ export default function Home() {
           </div> */}
 
           {/* How It Works Section */}
-          <div className="py-24 bg-white">
+          <div id="how-it-works" className="py-24 bg-white">
             <div className="max-w-7xl mx-auto px-8">
               <h2 className="text-5xl font-bold text-center mb-20 scale-in text-black">How It Works</h2>
               <div className="flex justify-between items-center">
@@ -1005,7 +609,9 @@ export default function Home() {
           </div>
 
           {/* Explore Videos Section */}
-          <ExploreVideos />
+          <div id="explore-videos">
+            <ExploreVideos />
+          </div>
 
           {/* CTA Section - Temporarily hidden */}
           {/* <div className="py-16 bg-gradient-to-b from-white to-[#FFF5F2]">
